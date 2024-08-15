@@ -18,7 +18,7 @@ function AudioUploader() {
     const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
       method: 'POST',
       headers: {
-        'Authorization': '81ef450c71e54128b976e40e1aa2105c'
+        'Authorization': 'API'
       },
       body: file
     });
@@ -31,7 +31,7 @@ function AudioUploader() {
       const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST',
         headers: {
-          'Authorization': '81ef450c71e54128b976e40e1aa2105c',
+          'Authorization': 'API',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -47,7 +47,7 @@ function AudioUploader() {
         while (true) {
           const pollingResponse = await fetch(pollingEndpoint, {
             headers: {
-              'Authorization': '81ef450c71e54128b976e40e1aa2105c'
+              'Authorization': 'API'
             }
           });
           const result = await pollingResponse.json();
