@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 
+const formatTimestamp = (timestamp) => {
+  const date = new Date(timestamp);
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+};
+
 function AudioUploader() {
   const [file, setFile] = useState(null);
   const [transcription, setTranscription] = useState('');
@@ -18,7 +26,7 @@ function AudioUploader() {
     const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
       method: 'POST',
       headers: {
-        'Authorization': '81ef450c71e54128b976e40e1aa2105c'
+        'Authorization': 'API'
       },
       body: file
     });
@@ -31,11 +39,12 @@ function AudioUploader() {
       const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST',
         headers: {
-          'Authorization': '81ef450c71e54128b976e40e1aa2105c',
+          'Authorization': 'API',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          audio_url: audioUrl
+          audio_url: audioUrl,
+          speaker_labels: true
         })
       });
 
@@ -47,13 +56,13 @@ function AudioUploader() {
         while (true) {
           const pollingResponse = await fetch(pollingEndpoint, {
             headers: {
-              'Authorization': '81ef450c71e54128b976e40e1aa2105c'
+              'Authorization': 'API'
             }
           });
           const result = await pollingResponse.json();
 
           if (result.status === 'completed') {
-            setTranscription(result.text);
+            setTranscription(result);
             break;
           } else if (result.status === 'error') {
             console.error('Transcription error:', result.error);
@@ -71,11 +80,18 @@ function AudioUploader() {
       <input type="file" onChange={handleFileChange} accept="audio/*" />
       <button onClick={handleUpload}>Upload and Transcribe</button>
       {transcription && (
-        <div>
-          <h3>Transcription:</h3>
-          <p>{transcription}</p>
-        </div>
-      )}
+  <div>
+    <h3>Transcription:</h3>
+    {transcription.utterances.map((utterance, index) => (
+    <p key={index}>
+      <strong>
+        TimeSteps: {formatTimestamp(utterance.start)} - {formatTimestamp(utterance.end)} Speaker {utterance.speaker}:
+      </strong> 
+      {utterance.text}
+    </p>
+))}
+  </div>
+)}
     </div>
   );
 }
