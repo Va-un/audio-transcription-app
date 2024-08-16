@@ -8,12 +8,15 @@ const formatTimestamp = (timestamp) => {
   return `${hours}:${minutes}:${seconds}`;
 };
 
-function AudioUploader() {
+function FileUploader() {
   const [file, setFile] = useState(null);
-  const [transcription, setTranscription] = useState('');
+  const [content, setContent] = useState('');
+  const [isAudioOrVideo, setIsAudioOrVideo] = useState(false);
 
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
+    const selectedFile = event.target.files[0];
+    setFile(selectedFile);
+    setIsAudioOrVideo(selectedFile.type.startsWith('audio/') || selectedFile.type.startsWith('video/'));
   };
 
   const handleUpload = async () => {
@@ -22,11 +25,19 @@ function AudioUploader() {
       return;
     }
 
+    if (isAudioOrVideo) {
+      await handleAudioVideoUpload();
+    } else {
+      await handleTextFileUpload();
+    }
+  };
+
+  const handleAudioVideoUpload = async () => {
     // First, upload the file to AssemblyAI
     const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
       method: 'POST',
       headers: {
-        'Authorization': 'API'
+        'Authorization': 'api'
       },
       body: file
     });
@@ -39,7 +50,7 @@ function AudioUploader() {
       const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST',
         headers: {
-          'Authorization': 'API',
+          'Authorization': 'api',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -50,19 +61,19 @@ function AudioUploader() {
 
       if (transcriptResponse.ok) {
         const transcriptResult = await transcriptResponse.json();
-        
+
         // Poll for the transcription result
         const pollingEndpoint = `https://api.assemblyai.com/v2/transcript/${transcriptResult.id}`;
         while (true) {
           const pollingResponse = await fetch(pollingEndpoint, {
             headers: {
-              'Authorization': 'API'
+              'Authorization': 'api'
             }
           });
           const result = await pollingResponse.json();
 
           if (result.status === 'completed') {
-            setTranscription(result);
+            setContent(result);
             break;
           } else if (result.status === 'error') {
             console.error('Transcription error:', result.error);
@@ -75,25 +86,38 @@ function AudioUploader() {
     }
   };
 
+  const handleTextFileUpload = async () => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      setContent(text);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div>
-      <input type="file" onChange={handleFileChange} accept="audio/*" />
-      <button onClick={handleUpload}>Upload and Transcribe</button>
-      {transcription && (
-  <div>
-    <h3>Transcription:</h3>
-    {transcription.utterances.map((utterance, index) => (
-    <p key={index}>
-      <strong>
-        TimeSteps: {formatTimestamp(utterance.start)} - {formatTimestamp(utterance.end)} Speaker {utterance.speaker}:
-      </strong> 
-      {utterance.text}
-    </p>
-))}
-  </div>
-)}
+      <input type="file" onChange={handleFileChange} accept="audio/*,video/*,.pdf,.txt,.doc,.docx" />
+      <button onClick={handleUpload}>Upload and Process</button>
+      {content && (
+        <div>
+          <h3>Content:</h3>
+          {isAudioOrVideo ? (
+            content.utterances.map((utterance, index) => (
+              <p key={index}>
+                <strong>
+                  TimeSteps: {formatTimestamp(utterance.start)} - {formatTimestamp(utterance.end)} Speaker {utterance.speaker}:
+                </strong>
+                {utterance.text}
+              </p>
+            ))
+          ) : (
+            <pre>{content}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export default AudioUploader;
+export default FileUploader;
